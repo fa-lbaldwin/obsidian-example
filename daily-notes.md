@@ -2,8 +2,8 @@
 aliases: ["Daily", "Today"]
 tags:
   - daily-note
-  - "<% tp.moment().format('YYYY') %>"
-  - "<% tp.moment().format('YYYY-MM') %>"
+  - <% tp.moment().format("YYYY") %>
+  - <% tp.moment().format("YYYY-MM") %>
 date: <% tp.moment().format("YYYY-MM-DD") %>
 weekday: <% tp.moment().format("dddd") %>
 week: <% tp.moment().format("YYYY-[W]WW") %>
@@ -62,7 +62,7 @@ if (missingPlugins.length > 0) {
 > *What's the one thing that, if accomplished, would make today a success?*
 
 > [!INFO] **Quick Links**
-> 📊 [[Weekly Review - <% tp.moment().format("YYYY-[W]WW") %>]] | 📈 [[Monthly Review - <% tp.moment().format("YYYY-MM") %>]] | 🗓️ [[<% tp.moment().subtract(1, 'day').format("YYYY-MM-DD") %>|Yesterday]] | [[<% tp.moment().add(1, 'day').format("YYYY-MM-DD") %>|Tomorrow]] 🗓️
+> 📊 [[Weekly Review - <% tp.moment().format("YYYY-[W]WW") %>]] | 📈 [[Monthly Review - <% tp.moment().format("YYYY-MM") %>]] | 🗓️ [[<% tp.moment().subtract(1, "day").format("YYYY-MM-DD") %>|Yesterday]] | [[<% tp.moment().add(1, "day").format("YYYY-MM-DD") %>|Tomorrow]] 🗓️
 
 ---
 
@@ -108,7 +108,7 @@ sort by priority
 ```tasks
 not done
 due after <% tp.moment().format("YYYY-MM-DD") %>
-due before <% tp.moment().add(7, 'days').format("YYYY-MM-DD") %>
+due before <% tp.moment().add(7, "days").format("YYYY-MM-DD") %>
 path does not include Templates
 sort by due
 limit 15
@@ -191,3 +191,4 @@ LIMIT 10
 TASK
 WHERE created = date(<% tp.moment().format("YYYY-MM-DD") %>)
 GROUP BY file.link
+```

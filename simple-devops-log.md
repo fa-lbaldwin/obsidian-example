@@ -3,56 +3,13 @@ aliases: ["Daily Log", "Work Log"]
 tags:
   - daily-log
   - devops
-  - <% window.moment().format("YYYY") %>
-  - <% window.moment().format("YYYY-MM") %>
-date: <% window.moment().format("YYYY-MM-DD") %>
-weekday: <% window.moment().format("dddd") %>
+date: <% tp.date.now("YYYY-MM-DD") %>
+weekday: <% tp.date.now("dddd") %>
 ---
 
-<%*
-/* Auto-organize into Logs/Daily/ folder */
-try {
-  // Use window.moment as fallback if tp.moment fails
-  const moment = tp.moment || window.moment;
-  if (!moment) {
-    throw new Error("Moment.js not available");
-  }
+# 📋 Daily Log - <% tp.date.now("YYYY-MM-DD") %> (<% tp.date.now("dddd") %>)
 
-  const folderPath = "Logs/Daily/";
-  const fileName = moment().format("YYYY-MM-DD");
-  const targetPath = `${folderPath}${fileName}.md`;
-
-  async function ensureFolder(path) {
-    const parts = path.split("/").filter(Boolean);
-    let cur = "";
-    for (const p of parts) {
-      cur += p + "/";
-      try { 
-        await app.vault.createFolder(cur); 
-      } catch(e) { 
-        // Folder exists, continue
-      }
-    }
-  }
-
-  await ensureFolder(folderPath);
-  
-  // Check if tp.file exists and has path method
-  if (tp.file && typeof tp.file.path === 'function') {
-    const currentPath = tp.file.path(false);
-    if (currentPath !== targetPath) { 
-      await tp.file.move(targetPath); 
-    }
-  }
-} catch (error) {
-  console.error("Template error:", error);
-  new Notice(`Template setup error: ${error.message}`, 5000);
-}
-%>
-
-# 📋 Daily Log - <% window.moment().format("YYYY-MM-DD") %> (<% window.moment().format("dddd") %>)
-
-> **Navigation:** [[<% window.moment().subtract(1, "day").format("YYYY-MM-DD") %>|← Yesterday]] | [[<% window.moment().add(1, "day").format("YYYY-MM-DD") %>|Tomorrow →]]
+> **Navigation:** [[<% tp.date.now("YYYY-MM-DD", -1) %>|← Yesterday]] | [[<% tp.date.now("YYYY-MM-DD", 1) %>|Tomorrow →]]
 
 ---
 
@@ -207,4 +164,4 @@ try {
 
 ---
 
-*Log created: <% window.moment().format("YYYY-MM-DD HH:mm") %>*
+*Log created: <% tp.date.now("YYYY-MM-DD HH:mm") %>*

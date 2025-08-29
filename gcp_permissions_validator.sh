@@ -24,50 +24,86 @@ VERBOSE=false
 OUTPUT_FORMAT="text"
 ERRORS_FOUND=false
 
-# Permission groups for different resource types
+# Permission groups for different resource types - Comprehensive list based on actual infrastructure
 declare -A COMPUTE_PERMISSIONS=(
-    ["instances"]="compute.instances.create compute.instances.delete compute.instances.get compute.instances.list"
-    ["networks"]="compute.networks.create compute.networks.delete compute.networks.get compute.networks.updatePolicy"
-    ["subnetworks"]="compute.subnetworks.create compute.subnetworks.delete compute.subnetworks.get compute.subnetworks.update"
-    ["firewalls"]="compute.firewalls.create compute.firewalls.delete compute.firewalls.get compute.firewalls.update"
-    ["addresses"]="compute.addresses.create compute.addresses.delete compute.addresses.get compute.addresses.use"
-    ["routers"]="compute.routers.create compute.routers.delete compute.routers.get compute.routers.update"
+    ["instances"]="compute.instances.create compute.instances.delete compute.instances.get compute.instances.list compute.instances.setMetadata compute.instances.setServiceAccount"
+    ["networks"]="compute.networks.create compute.networks.delete compute.networks.get compute.networks.updatePolicy compute.networks.update compute.networks.addPeering compute.networks.removePeering"
+    ["subnetworks"]="compute.subnetworks.create compute.subnetworks.delete compute.subnetworks.get compute.subnetworks.update compute.subnetworks.use compute.subnetworks.expandIpCidrRange"
+    ["firewalls"]="compute.firewalls.create compute.firewalls.delete compute.firewalls.get compute.firewalls.update compute.firewalls.list"
+    ["addresses"]="compute.addresses.create compute.addresses.delete compute.addresses.get compute.addresses.use compute.addresses.list compute.globalAddresses.create compute.globalAddresses.delete compute.globalAddresses.get compute.globalAddresses.use"
+    ["routers"]="compute.routers.create compute.routers.delete compute.routers.get compute.routers.update compute.routers.use"
+    ["securitypolicies"]="compute.securityPolicies.create compute.securityPolicies.delete compute.securityPolicies.get compute.securityPolicies.update compute.securityPolicies.use compute.securityPolicies.addRule compute.securityPolicies.removeRule"
+    ["sslpolicies"]="compute.sslPolicies.create compute.sslPolicies.delete compute.sslPolicies.get compute.sslPolicies.update compute.sslPolicies.use"
 )
 
 declare -A GKE_PERMISSIONS=(
-    ["clusters"]="container.clusters.create container.clusters.delete container.clusters.get container.clusters.update"
-    ["operations"]="container.operations.get container.operations.list"
-    ["nodes"]="container.nodes.get container.nodes.list"
+    ["clusters"]="container.clusters.create container.clusters.delete container.clusters.get container.clusters.update container.clusters.getCredentials"
+    ["operations"]="container.operations.get container.operations.list container.operations.cancel"
+    ["nodes"]="container.nodes.get container.nodes.list container.nodes.update"
+    ["autopilot"]="container.clusters.createAutopilot container.clusters.updateAutopilot"
+    ["workloadidentity"]="container.workloadIdentityPools.use iam.serviceAccounts.getAccessToken iam.serviceAccounts.actAs"
+    ["pods"]="container.pods.create container.pods.delete container.pods.get container.pods.list container.pods.update"
+    ["services"]="container.services.create container.services.delete container.services.get container.services.list container.services.update"
+    ["configmaps"]="container.configMaps.create container.configMaps.delete container.configMaps.get container.configMaps.list container.configMaps.update"
+    ["secrets"]="container.secrets.create container.secrets.delete container.secrets.get container.secrets.list container.secrets.update"
+    ["deployments"]="container.deployments.create container.deployments.delete container.deployments.get container.deployments.list container.deployments.update"
+    ["persistentvolumes"]="container.persistentVolumes.create container.persistentVolumes.delete container.persistentVolumes.get container.persistentVolumes.list"
+    ["persistentvolumeclaims"]="container.persistentVolumeClaims.create container.persistentVolumeClaims.delete container.persistentVolumeClaims.get container.persistentVolumeClaims.list"
 )
 
 declare -A SQL_PERMISSIONS=(
-    ["instances"]="cloudsql.instances.create cloudsql.instances.delete cloudsql.instances.get cloudsql.instances.update"
-    ["databases"]="cloudsql.databases.create cloudsql.databases.delete cloudsql.databases.get cloudsql.databases.update"
+    ["instances"]="cloudsql.instances.create cloudsql.instances.delete cloudsql.instances.get cloudsql.instances.update cloudsql.instances.connect cloudsql.instances.restart"
+    ["databases"]="cloudsql.databases.create cloudsql.databases.delete cloudsql.databases.get cloudsql.databases.update cloudsql.databases.list"
     ["users"]="cloudsql.users.create cloudsql.users.delete cloudsql.users.list cloudsql.users.update"
-    ["backups"]="cloudsql.backupRuns.create cloudsql.backupRuns.get cloudsql.backupRuns.list"
+    ["backups"]="cloudsql.backupRuns.create cloudsql.backupRuns.get cloudsql.backupRuns.list cloudsql.backupRuns.delete"
+    ["sslcerts"]="cloudsql.sslCerts.create cloudsql.sslCerts.delete cloudsql.sslCerts.get cloudsql.sslCerts.list"
 )
 
 declare -A NETWORKING_PERMISSIONS=(
-    ["armor"]="compute.securityPolicies.create compute.securityPolicies.delete compute.securityPolicies.get compute.securityPolicies.update"
-    ["ssl"]="compute.sslCertificates.create compute.sslCertificates.delete compute.sslCertificates.get"
-    ["loadbalancer"]="compute.backendServices.create compute.backendServices.delete compute.backendServices.get compute.backendServices.update"
-    ["dns"]="dns.managedZones.create dns.managedZones.delete dns.managedZones.get dns.changes.create dns.resourceRecordSets.create"
+    ["armor"]="compute.securityPolicies.create compute.securityPolicies.delete compute.securityPolicies.get compute.securityPolicies.update compute.securityPolicies.use compute.securityPolicies.addRule compute.securityPolicies.removeRule"
+    ["ssl"]="compute.sslCertificates.create compute.sslCertificates.delete compute.sslCertificates.get compute.sslCertificates.list compute.sslCertificates.use"
+    ["loadbalancer"]="compute.backendServices.create compute.backendServices.delete compute.backendServices.get compute.backendServices.update compute.backendServices.use compute.backendServices.setSecurityPolicy"
+    ["targetproxies"]="compute.targetHttpProxies.create compute.targetHttpProxies.delete compute.targetHttpProxies.get compute.targetHttpProxies.use compute.targetHttpsProxies.create compute.targetHttpsProxies.delete compute.targetHttpsProxies.get compute.targetHttpsProxies.use"
+    ["urlmaps"]="compute.urlMaps.create compute.urlMaps.delete compute.urlMaps.get compute.urlMaps.update compute.urlMaps.use"
+    ["forwardingrules"]="compute.globalForwardingRules.create compute.globalForwardingRules.delete compute.globalForwardingRules.get compute.forwardingRules.create compute.forwardingRules.delete compute.forwardingRules.get"
+    ["dns"]="dns.managedZones.create dns.managedZones.delete dns.managedZones.get dns.managedZones.update dns.changes.create dns.changes.get dns.resourceRecordSets.create dns.resourceRecordSets.delete dns.resourceRecordSets.update"
+    ["servicenetworking"]="servicenetworking.services.addPeering servicenetworking.services.get compute.networks.addPeering compute.networks.removePeering compute.globalAddresses.create"
 )
 
 declare -A IAM_PERMISSIONS=(
-    ["serviceaccounts"]="iam.serviceAccounts.create iam.serviceAccounts.delete iam.serviceAccounts.get iam.serviceAccounts.getIamPolicy"
-    ["roles"]="iam.roles.get iam.roles.list resourcemanager.projects.getIamPolicy resourcemanager.projects.setIamPolicy"
+    ["serviceaccounts"]="iam.serviceAccounts.create iam.serviceAccounts.delete iam.serviceAccounts.get iam.serviceAccounts.list iam.serviceAccounts.update iam.serviceAccounts.getIamPolicy iam.serviceAccounts.setIamPolicy iam.serviceAccounts.actAs"
+    ["workloadidentity"]="iam.serviceAccounts.getAccessToken iam.serviceAccounts.signBlob iam.serviceAccounts.signJwt iam.workloadIdentityPools.providers.get iam.workloadIdentityPools.providers.list"
+    ["roles"]="iam.roles.get iam.roles.list iam.roles.create iam.roles.update iam.roles.delete"
+    ["bindings"]="resourcemanager.projects.getIamPolicy resourcemanager.projects.setIamPolicy iam.serviceAccountKeys.create iam.serviceAccountKeys.delete iam.serviceAccountKeys.get"
 )
 
 declare -A STORAGE_PERMISSIONS=(
-    ["buckets"]="storage.buckets.create storage.buckets.delete storage.buckets.get storage.buckets.getIamPolicy storage.buckets.setIamPolicy"
-    ["objects"]="storage.objects.create storage.objects.delete storage.objects.get storage.objects.list"
+    ["buckets"]="storage.buckets.create storage.buckets.delete storage.buckets.get storage.buckets.list storage.buckets.update storage.buckets.getIamPolicy storage.buckets.setIamPolicy"
+    ["objects"]="storage.objects.create storage.objects.delete storage.objects.get storage.objects.list storage.objects.update"
+    ["hmackeys"]="storage.hmacKeys.create storage.hmacKeys.delete storage.hmacKeys.get storage.hmacKeys.list"
+)
+
+declare -A SECRET_MANAGER_PERMISSIONS=(
+    ["secrets"]="secretmanager.secrets.create secretmanager.secrets.delete secretmanager.secrets.get secretmanager.secrets.list secretmanager.secrets.update secretmanager.secrets.setIamPolicy secretmanager.secrets.getIamPolicy"
+    ["versions"]="secretmanager.versions.add secretmanager.versions.access secretmanager.versions.destroy secretmanager.versions.disable secretmanager.versions.enable secretmanager.versions.get secretmanager.versions.list"
 )
 
 declare -A MONITORING_PERMISSIONS=(
-    ["logging"]="logging.logEntries.create logging.logs.list"
-    ["monitoring"]="monitoring.metricDescriptors.create monitoring.metricDescriptors.list"
-    ["serviceusage"]="serviceusage.services.enable serviceusage.services.disable serviceusage.services.get"
+    ["logging"]="logging.logEntries.create logging.logs.list logging.logs.delete logging.sinks.create logging.sinks.delete logging.sinks.get logging.sinks.list logging.sinks.update"
+    ["monitoring"]="monitoring.metricDescriptors.create monitoring.metricDescriptors.list monitoring.metricDescriptors.get monitoring.timeSeries.create monitoring.timeSeries.list"
+    ["serviceusage"]="serviceusage.services.enable serviceusage.services.disable serviceusage.services.get serviceusage.services.list serviceusage.services.use"
+    ["cloudtrace"]="cloudtrace.traces.patch cloudtrace.traces.get cloudtrace.traces.list"
+)
+
+declare -A ARTIFACT_REGISTRY_PERMISSIONS=(
+    ["repositories"]="artifactregistry.repositories.create artifactregistry.repositories.delete artifactregistry.repositories.get artifactregistry.repositories.list artifactregistry.repositories.update"
+    ["artifacts"]="artifactregistry.dockerimages.get artifactregistry.dockerimages.list artifactregistry.files.get artifactregistry.files.list"
+    ["packages"]="artifactregistry.packages.delete artifactregistry.packages.get artifactregistry.packages.list"
+)
+
+declare -A BINARY_AUTHORIZATION_PERMISSIONS=(
+    ["attestors"]="binaryauthorization.attestors.create binaryauthorization.attestors.delete binaryauthorization.attestors.get binaryauthorization.attestors.list binaryauthorization.attestors.update"
+    ["policy"]="binaryauthorization.policy.get binaryauthorization.policy.update"
 )
 
 # Function to print usage
@@ -267,12 +303,15 @@ check_apply_permissions() {
     log INFO "Validating permissions for 'terraform apply' operation..."
     
     check_permission_group "Compute Engine" COMPUTE_PERMISSIONS "$project"
-    check_permission_group "Google Kubernetes Engine" GKE_PERMISSIONS "$project"
+    check_permission_group "Google Kubernetes Engine (Autopilot)" GKE_PERMISSIONS "$project"
     check_permission_group "Cloud SQL" SQL_PERMISSIONS "$project"
-    check_permission_group "Networking & Security" NETWORKING_PERMISSIONS "$project"
-    check_permission_group "IAM" IAM_PERMISSIONS "$project"
-    check_permission_group "Storage" STORAGE_PERMISSIONS "$project"
+    check_permission_group "Networking & Load Balancing" NETWORKING_PERMISSIONS "$project"
+    check_permission_group "IAM & Workload Identity" IAM_PERMISSIONS "$project"
+    check_permission_group "Cloud Storage" STORAGE_PERMISSIONS "$project"
+    check_permission_group "Secret Manager" SECRET_MANAGER_PERMISSIONS "$project"
     check_permission_group "Monitoring & Logging" MONITORING_PERMISSIONS "$project"
+    check_permission_group "Artifact Registry" ARTIFACT_REGISTRY_PERMISSIONS "$project"
+    check_permission_group "Binary Authorization" BINARY_AUTHORIZATION_PERMISSIONS "$project"
 }
 
 # Function to check permissions for destroy operation
@@ -281,23 +320,78 @@ check_destroy_permissions() {
     
     log INFO "Validating permissions for 'terraform destroy' operation..."
     
-    # For destroy, we need delete and get permissions primarily
+    # For destroy, we need delete and get permissions for all resources
     local destroy_perms=(
+        # Compute resources
         "compute.instances.delete"
+        "compute.instances.get"
         "compute.networks.delete"
+        "compute.networks.removePeering"
         "compute.subnetworks.delete"
         "compute.firewalls.delete"
         "compute.addresses.delete"
+        "compute.globalAddresses.delete"
         "compute.routers.delete"
-        "container.clusters.delete"
-        "cloudsql.instances.delete"
         "compute.securityPolicies.delete"
+        "compute.securityPolicies.removeRule"
+        "compute.sslPolicies.delete"
         "compute.sslCertificates.delete"
         "compute.backendServices.delete"
+        "compute.targetHttpProxies.delete"
+        "compute.targetHttpsProxies.delete"
+        "compute.urlMaps.delete"
+        "compute.globalForwardingRules.delete"
+        "compute.forwardingRules.delete"
+        
+        # GKE Autopilot
+        "container.clusters.delete"
+        "container.operations.get"
+        "container.pods.delete"
+        "container.services.delete"
+        "container.configMaps.delete"
+        "container.secrets.delete"
+        "container.deployments.delete"
+        "container.persistentVolumes.delete"
+        "container.persistentVolumeClaims.delete"
+        
+        # Cloud SQL
+        "cloudsql.instances.delete"
+        "cloudsql.databases.delete"
+        "cloudsql.users.delete"
+        "cloudsql.backupRuns.delete"
+        "cloudsql.sslCerts.delete"
+        
+        # DNS
         "dns.managedZones.delete"
+        "dns.resourceRecordSets.delete"
+        
+        # IAM
         "iam.serviceAccounts.delete"
+        "iam.serviceAccountKeys.delete"
+        "iam.roles.delete"
+        
+        # Storage
         "storage.buckets.delete"
         "storage.objects.delete"
+        "storage.hmacKeys.delete"
+        
+        # Secret Manager
+        "secretmanager.secrets.delete"
+        "secretmanager.versions.destroy"
+        
+        # Monitoring
+        "logging.sinks.delete"
+        
+        # Artifact Registry
+        "artifactregistry.repositories.delete"
+        "artifactregistry.packages.delete"
+        
+        # Binary Authorization
+        "binaryauthorization.attestors.delete"
+        
+        # Service Networking
+        "servicenetworking.services.get"
+        "compute.networks.removePeering"
     )
     
     local all_passed=true

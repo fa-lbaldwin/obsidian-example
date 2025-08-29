@@ -114,7 +114,11 @@ Usage: $0 [OPTIONS]
 Validates GCP permissions required for Terraform operations.
 
 OPTIONS:
-    -m, --mode MODE           Check mode: 'apply' or 'destroy' (default: apply)
+    -m, --mode MODE           Check mode: 'create', 'apply', 'destroy', or 'all' (default: apply)
+                              - create: Check permissions for creating new infrastructure
+                              - apply:  Check permissions for general terraform apply
+                              - destroy: Check permissions for destroying infrastructure
+                              - all: Check both create and destroy permissions
     -e, --environment ENV     Target environment (dev, staging, prod, or custom)
     -v, --verbose            Enable verbose output
     -o, --output FORMAT      Output format: text, json, yaml (default: text)
@@ -122,8 +126,10 @@ OPTIONS:
     -h, --help               Display this help message
 
 EXAMPLES:
-    $0 --mode apply --environment dev
-    $0 -m destroy -e prod -v
+    $0 --mode create --environment dev    # Check permissions for new infrastructure
+    $0 --mode apply --environment dev     # Check permissions for updates
+    $0 -m destroy -e prod -v              # Check permissions for teardown
+    $0 --mode all --environment dev       # Check both create and destroy permissions
     $0 --environment staging --output json
 
 EOF
@@ -314,6 +320,146 @@ check_apply_permissions() {
     check_permission_group "Binary Authorization" BINARY_AUTHORIZATION_PERMISSIONS "$project"
 }
 
+# Function to check permissions for create operation (more restrictive than apply)
+check_create_permissions() {
+    local project=$1
+    
+    log INFO "Validating permissions for 'terraform apply' (create) operation on new infrastructure..."
+    
+    # For create, we need all creation and configuration permissions
+    local create_perms=(
+        # Compute resources - creation
+        "compute.instances.create"
+        "compute.instances.setMetadata"
+        "compute.instances.setServiceAccount"
+        "compute.networks.create"
+        "compute.networks.updatePolicy"
+        "compute.networks.addPeering"
+        "compute.subnetworks.create"
+        "compute.subnetworks.use"
+        "compute.subnetworks.expandIpCidrRange"
+        "compute.firewalls.create"
+        "compute.addresses.create"
+        "compute.addresses.use"
+        "compute.globalAddresses.create"
+        "compute.globalAddresses.use"
+        "compute.routers.create"
+        "compute.routers.update"
+        "compute.securityPolicies.create"
+        "compute.securityPolicies.addRule"
+        "compute.securityPolicies.use"
+        "compute.sslPolicies.create"
+        "compute.sslPolicies.use"
+        "compute.sslCertificates.create"
+        "compute.sslCertificates.use"
+        "compute.backendServices.create"
+        "compute.backendServices.setSecurityPolicy"
+        "compute.backendServices.use"
+        "compute.targetHttpProxies.create"
+        "compute.targetHttpProxies.use"
+        "compute.targetHttpsProxies.create"
+        "compute.targetHttpsProxies.use"
+        "compute.urlMaps.create"
+        "compute.urlMaps.use"
+        "compute.globalForwardingRules.create"
+        "compute.forwardingRules.create"
+        
+        # GKE Autopilot - creation
+        "container.clusters.create"
+        "container.clusters.createAutopilot"
+        "container.clusters.getCredentials"
+        "container.operations.get"
+        "container.pods.create"
+        "container.services.create"
+        "container.configMaps.create"
+        "container.secrets.create"
+        "container.deployments.create"
+        "container.persistentVolumes.create"
+        "container.persistentVolumeClaims.create"
+        
+        # Workload Identity
+        "iam.serviceAccounts.actAs"
+        "iam.serviceAccounts.getAccessToken"
+        "iam.workloadIdentityPools.providers.get"
+        "container.workloadIdentityPools.use"
+        
+        # Cloud SQL - creation
+        "cloudsql.instances.create"
+        "cloudsql.instances.connect"
+        "cloudsql.databases.create"
+        "cloudsql.users.create"
+        "cloudsql.backupRuns.create"
+        "cloudsql.sslCerts.create"
+        
+        # DNS - creation
+        "dns.managedZones.create"
+        "dns.changes.create"
+        "dns.resourceRecordSets.create"
+        
+        # IAM - creation
+        "iam.serviceAccounts.create"
+        "iam.serviceAccounts.setIamPolicy"
+        "iam.serviceAccountKeys.create"
+        "iam.roles.create"
+        "resourcemanager.projects.setIamPolicy"
+        
+        # Storage - creation
+        "storage.buckets.create"
+        "storage.buckets.setIamPolicy"
+        "storage.objects.create"
+        "storage.hmacKeys.create"
+        
+        # Secret Manager - creation
+        "secretmanager.secrets.create"
+        "secretmanager.secrets.setIamPolicy"
+        "secretmanager.versions.add"
+        
+        # Monitoring - creation
+        "logging.sinks.create"
+        "logging.logEntries.create"
+        "monitoring.metricDescriptors.create"
+        "monitoring.timeSeries.create"
+        "cloudtrace.traces.patch"
+        
+        # Artifact Registry - creation
+        "artifactregistry.repositories.create"
+        "artifactregistry.dockerimages.get"
+        
+        # Binary Authorization - creation
+        "binaryauthorization.attestors.create"
+        "binaryauthorization.policy.update"
+        
+        # Service Networking - creation
+        "servicenetworking.services.addPeering"
+        "compute.networks.addPeering"
+        
+        # Service Usage - enable APIs
+        "serviceusage.services.enable"
+        "serviceusage.services.use"
+    )
+    
+    local all_passed=true
+    echo ""
+    log INFO "Checking create permissions..."
+    
+    for perm in "${create_perms[@]}"; do
+        if test_permission "$project" "$perm"; then
+            if [[ "$VERBOSE" == true ]]; then
+                log SUCCESS "  $perm"
+            fi
+        else
+            log ERROR "  Missing permission: $perm"
+            all_passed=false
+        fi
+    done
+    
+    if [[ "$all_passed" == true ]]; then
+        log SUCCESS "Create permissions validated"
+    else
+        log ERROR "Missing required create permissions"
+    fi
+}
+
 # Function to check permissions for destroy operation
 check_destroy_permissions() {
     local project=$1
@@ -484,8 +630,8 @@ main() {
     done
     
     # Validate check mode
-    if [[ "$CHECK_MODE" != "apply" ]] && [[ "$CHECK_MODE" != "destroy" ]]; then
-        log ERROR "Invalid mode: $CHECK_MODE. Must be 'apply' or 'destroy'"
+    if [[ "$CHECK_MODE" != "create" ]] && [[ "$CHECK_MODE" != "apply" ]] && [[ "$CHECK_MODE" != "destroy" ]] && [[ "$CHECK_MODE" != "all" ]]; then
+        log ERROR "Invalid mode: $CHECK_MODE. Must be 'create', 'apply', 'destroy', or 'all'"
         exit 1
     fi
     
@@ -497,11 +643,26 @@ main() {
     log SUCCESS "Using GCP project: $PROJECT"
     
     # Run permission checks based on mode
-    if [[ "$CHECK_MODE" == "apply" ]]; then
-        check_apply_permissions "$PROJECT"
-    else
-        check_destroy_permissions "$PROJECT"
-    fi
+    case "$CHECK_MODE" in
+        create)
+            check_create_permissions "$PROJECT"
+            ;;
+        apply)
+            check_apply_permissions "$PROJECT"
+            ;;
+        destroy)
+            check_destroy_permissions "$PROJECT"
+            ;;
+        all)
+            log INFO "Running comprehensive permission check (create and destroy)..."
+            echo ""
+            log INFO "=== CREATE PERMISSIONS ==="
+            check_create_permissions "$PROJECT"
+            echo ""
+            log INFO "=== DESTROY PERMISSIONS ==="
+            check_destroy_permissions "$PROJECT"
+            ;;
+    esac
     
     # Generate output based on format
     echo ""
